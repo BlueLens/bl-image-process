@@ -201,3 +201,4 @@ grpc/tmp.jpg
 Dockerfile
 !faiss/*.so
 kubernetes/config.yaml
+kubernetes/config-dev.yaml
