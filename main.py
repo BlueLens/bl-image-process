@@ -23,6 +23,7 @@ AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY'].replace('"', '')
 REDIS_PRODUCT_IMAGE_PROCESS_QUEUE = 'bl:product:image:process:queue'
 
 SPAWNING_CRITERIA = 50
+PROCESSING_TERM = 60
 
 options = {
   'REDIS_SERVER': REDIS_SERVER,
@@ -62,19 +63,21 @@ def spawn_image_processor(uuid):
   pool.addContainerEnv(container, 'DB_PRODUCT_PASSWORD', DB_PRODUCT_PASSWORD)
   pool.addContainerEnv(container, 'DB_PRODUCT_NAME', DB_PRODUCT_NAME)
   pool.setContainerImage(container, 'bluelens/bl-image-processor:' + RELEASE_MODE)
+  pool.setContainerImagePullPolicy(container, 'Always')
   pool.addContainer(container)
   pool.setRestartPolicy('Never')
   pool.spawn()
 
 def dispatch_image_processor(rconn):
   log.info('Start dispatch_image_processor')
+  spawn_count = 1
   while True:
     len = rconn.llen(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE)
     if len > SPAWNING_CRITERIA:
       spawn_image_processor(str(uuid.uuid4()))
-    time.sleep(60)
+    time.sleep(spawn_count * PROCESSING_TERM)
+    spawn_count = spawn_count + 1
 
 if __name__ == '__main__':
-  log.info('Start bl-image-process')
+  log.info('Start bl-image-process:1')
   Process(target=dispatch_image_processor, args=(rconn,)).start()
-  # spawn_image_processor('1')
