@@ -27,7 +27,7 @@ REDIS_PRODUCT_IMAGE_PROCESS_QUEUE = 'bl:product:image:process:queue'
 REDIS_CRAWL_VERSION = 'bl:crawl:version'
 REDIS_CRAWL_VERSION_LATEST = 'latest'
 
-SPAWNING_CRITERIA = 50
+SPAWNING_CRITERIA = 100
 PROCESSING_TERM = 60
 
 options = {
@@ -44,6 +44,7 @@ def get_latest_crawl_version():
     version_id = value.decode("utf-8")
   except Exception as e:
     log.error(str(e))
+    version_id = None
   return version_id
 
 def cleanup_products(host_code, version_id):
@@ -59,14 +60,14 @@ def cleanup_products(host_code, version_id):
 def push_product_to_queue(product):
   rconn.lpush(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE, pickle.dumps(product))
 
-def query(host_code):
+def query(host_code, version_id):
   global product_api
   log.info('start query: ' + host_code)
 
-  version_id = get_latest_crawl_version()
+  spawn_counter = 0
 
   q_offset = 0
-  q_limit = 100
+  q_limit = 500
 
   try:
     while True:
@@ -76,10 +77,13 @@ def query(host_code):
       for p in res:
         push_product_to_queue(p)
 
-      if q_limit > len(res):
-        q_offset = 0
+      if len(res) == 0:
+        break
       else:
         q_offset = q_offset + q_limit
+        if spawn_counter < SPAWNING_CRITERIA:
+          spawn_image_processor(str(uuid.uuid4()))
+        spawn_counter = spawn_counter + 1
 
       time.sleep(60)
   except Exception as e:
@@ -127,19 +131,10 @@ def dispatch_query_job(rconn):
   product_api = Products()
   while True:
     key, value = rconn.blpop([REDIS_HOST_CLASSIFY_QUEUE])
-    query(value.decode('utf-8'))
-
-def dispatch_image_processor(rconn):
-  log.info('Start dispatch_image_processor')
-  spawn_count = 1
-  while True:
-    len = rconn.llen(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE)
-    if len > SPAWNING_CRITERIA:
-      spawn_image_processor(str(uuid.uuid4()))
-    time.sleep(spawn_count * PROCESSING_TERM)
-    # spawn_count = spawn_count + 1
+    version_id = get_latest_crawl_version()
+    if version_id is not None:
+      query(value.decode('utf-8'), version_id)
 
 if __name__ == '__main__':
-  log.info('Start bl-image-process:1')
+  log.info('Start bl-image-process:3')
   Process(target=dispatch_query_job, args=(rconn,)).start()
-  Process(target=dispatch_image_processor, args=(rconn,)).start()
