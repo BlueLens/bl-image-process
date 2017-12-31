@@ -27,7 +27,7 @@ REDIS_PRODUCT_IMAGE_PROCESS_QUEUE = 'bl:product:image:process:queue'
 REDIS_CRAWL_VERSION = 'bl:crawl:version'
 REDIS_CRAWL_VERSION_LATEST = 'latest'
 
-SPAWNING_CRITERIA = 100
+SPAWNING_CRITERIA = 50
 PROCESSING_TERM = 60
 
 options = {
