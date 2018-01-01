@@ -136,7 +136,7 @@ def dispatch(rconn, version_id):
 
   size = rconn.llen(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE)
 
-  if size < MAX_PROCESS_NUM:
+  if size > 0 and size < MAX_PROCESS_NUM:
     for i in range(10):
       spawn(str(uuid.uuid4()))
     time.sleep(60*60*2)
@@ -188,6 +188,12 @@ def check_condition_to_start(version_id):
     total_crawl_size = crawl_api.get_size_crawls(version_id)
     crawled_size = crawl_api.get_size_crawls(version_id, status='done')
     if total_crawl_size != crawled_size:
+      return False
+
+    # Check Crawling process is done
+    total_product_size = product_api.get_size_products(version_id)
+    processed_size = product_api.get_size_products(version_id, is_processed=True)
+    if total_product_size == processed_size:
       return False
 
     # Check Image processing queue is empty
