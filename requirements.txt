@@ -1,10 +1,10 @@
 bluelens-log==1.0.2
 bluelens-spawning-pool==1.0.10
-certifi==2017.11.5
+certifi==2018.1.18
 olefile==0.44
 pymongo==3.6.0
 python-dateutil==2.6.1
 redis==2.10.6
 six==1.11.0
-stylelens-product==1.0.47
+stylelens-product==1.0.65
 urllib3==1.22
