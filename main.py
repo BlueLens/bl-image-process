@@ -151,6 +151,18 @@ def dispatch(rconn, version_id):
       spawn(str(uuid.uuid4()))
     # time.sleep(60*60*10)
 
+def clear_dbs(version_id):
+  remove_old_products(version_id)
+
+
+def remove_old_products(version_id):
+  global product_api
+
+  try:
+    res = product_api.delete_old_products(version_id)
+  except Exception as e:
+    log.error(str(e))
+
 def remove_prev_pods():
   pool = spawning_pool.SpawningPool()
   pool.setServerUrl(REDIS_SERVER)
@@ -169,6 +181,7 @@ def prepare_products(rconn, version_id):
   limit = 200
 
   clear_product_queue(rconn)
+  clear_dbs(version_id)
   remove_prev_pods()
   try:
     log.info('prepare_products')
@@ -198,6 +211,12 @@ def check_condition_to_start(version_id):
 
   try:
     log.info("check_condition_to_start")
+
+    # Check if image processing queue is empty
+    queue_size = rconn.llen(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE)
+    if queue_size != 0:
+      return False
+
     # Check if crawling process is done
     total_crawl_size = crawl_api.get_size_crawls(version_id)
     crawled_size = crawl_api.get_size_crawls(version_id, status='done')
@@ -213,10 +232,6 @@ def check_condition_to_start(version_id):
     if (available_product_size + unavailable_product_size) == total_product_size:
       return False
 
-    # Check if image processing queue is empty
-    queue_size = rconn.llen(REDIS_PRODUCT_IMAGE_PROCESS_QUEUE)
-    if queue_size != 0:
-      return False
 
   except Exception as e:
     log.error(str(e))
